@@ -9,6 +9,23 @@ CONFIG_KEYS = [
     "CALLMEBOT_WHATSAPP_PHONE",
     "CALLMEBOT_WHATSAPP_APIKEY",
     "CALLMEBOT_TELEGRAM_GROUP_APIKEY",
+    "WEBHOOK_TOKEN",
+    "SIGNAL_SNAPSHOT_JSON",
+]
+
+
+SERVER_REQUIRED_KEYS = [
+    "GOLDAPI_KEY",
+    "CALLMEBOT_WHATSAPP_PHONE",
+    "CALLMEBOT_WHATSAPP_APIKEY",
+    "WEBHOOK_TOKEN",
+]
+
+
+ACTION_REQUIRED_KEYS = [
+    "GOLDAPI_KEY",
+    "CALLMEBOT_WHATSAPP_PHONE",
+    "CALLMEBOT_WHATSAPP_APIKEY",
 ]
 
 
@@ -34,6 +51,31 @@ def redacted_config_lines() -> list[str]:
         status = redact(value) if value else "not set"
         lines.append(f"{key}: {status}")
     return lines
+
+
+def missing_keys(keys: list[str]) -> list[str]:
+    return [key for key in keys if not os.getenv(key)]
+
+
+def env_bool(key: str, default: bool = False) -> bool:
+    value = os.getenv(key)
+    if value is None:
+        return default
+    return value.strip().lower() in {"1", "true", "yes", "y", "on"}
+
+
+def env_float(key: str, default: float) -> float:
+    value = os.getenv(key)
+    if value is None or value.strip() == "":
+        return default
+    return float(value)
+
+
+def env_int(key: str, default: int) -> int:
+    value = os.getenv(key)
+    if value is None or value.strip() == "":
+        return default
+    return int(value)
 
 
 def redact(value: str) -> str:

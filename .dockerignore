@@ -1,0 +1,8 @@
+.git
+.github
+.env
+*.env
+__pycache__/
+*.py[cod]
+tests/__pycache__/
+xauusd_scalp_master/__pycache__/

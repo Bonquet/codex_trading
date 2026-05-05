@@ -2,11 +2,12 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import time
 from pathlib import Path
 
 from .callmebot import CallMeBotClient, CallMeBotError
-from .config import load_env_file, redacted_config_lines
+from .config import ACTION_REQUIRED_KEYS, SERVER_REQUIRED_KEYS, env_bool, env_float, env_int, load_env_file, missing_keys, redacted_config_lines
 from .engine import (
     MarketSnapshot,
     TradeRecord,
@@ -62,27 +63,27 @@ def main(argv: list[str] | None = None) -> int:
     watch_parser.add_argument("--metal", default="XAU")
     watch_parser.add_argument("--currency", default="USD")
     watch_parser.add_argument("--timeout", type=float, default=10.0)
-    watch_parser.add_argument("--interval", type=float, default=60.0, help="Seconds between signal checks.")
-    watch_parser.add_argument("--cooldown", type=float, default=300.0, help="Seconds between repeated valid alerts.")
+    watch_parser.add_argument("--interval", type=float, default=env_float("WATCH_INTERVAL", 60.0), help="Seconds between signal checks.")
+    watch_parser.add_argument("--cooldown", type=float, default=env_float("WATCH_COOLDOWN", 300.0), help="Seconds between repeated valid alerts.")
     watch_parser.add_argument("--notify", choices=["whatsapp", "telegram-group"], default="whatsapp")
-    watch_parser.add_argument("--notify-all", action="store_true", help="Notify even when the signal is WAIT/NO TRADE.")
+    watch_parser.add_argument("--notify-all", action="store_true", default=env_bool("NOTIFY_ALL", False), help="Notify even when the signal is WAIT/NO TRADE.")
     watch_parser.add_argument("--once", action="store_true", help="Run one watch iteration then exit.")
-    watch_parser.add_argument("--news-clear-30m", action="store_true")
-    watch_parser.add_argument("--news-clear-2h", action="store_true")
+    watch_parser.add_argument("--news-clear-30m", action="store_true", default=env_bool("NEWS_CLEAR_30M", False))
+    watch_parser.add_argument("--news-clear-2h", action="store_true", default=env_bool("NEWS_CLEAR_2H", False))
     watch_parser.add_argument("--telegram-html", action="store_true")
 
     serve_parser = subparsers.add_parser("serve", help="Run a local HTTP webhook server for CallMeBot commands.")
-    serve_parser.add_argument("--host", default="127.0.0.1")
-    serve_parser.add_argument("--port", type=int, default=8787)
-    serve_parser.add_argument("--token", help="Shared secret required as ?token=... on webhook URLs.")
-    serve_parser.add_argument("--snapshot", help="JSON file with live chart/news confirmations.")
+    serve_parser.add_argument("--host", default=os.getenv("HOST", "127.0.0.1"))
+    serve_parser.add_argument("--port", type=int, default=env_int("PORT", 8787))
+    serve_parser.add_argument("--token", default=os.getenv("WEBHOOK_TOKEN"), help="Shared secret required as ?token=... on webhook URLs.")
+    serve_parser.add_argument("--snapshot", default=os.getenv("SIGNAL_SNAPSHOT_PATH"), help="JSON file with live chart/news confirmations.")
     serve_parser.add_argument("--pip-size", type=float, default=0.10)
     serve_parser.add_argument("--metal", default="XAU")
     serve_parser.add_argument("--currency", default="USD")
     serve_parser.add_argument("--timeout", type=float, default=10.0)
     serve_parser.add_argument("--notify", choices=["whatsapp", "telegram-group"], default="whatsapp")
-    serve_parser.add_argument("--news-clear-30m", action="store_true")
-    serve_parser.add_argument("--news-clear-2h", action="store_true")
+    serve_parser.add_argument("--news-clear-30m", action="store_true", default=env_bool("NEWS_CLEAR_30M", False))
+    serve_parser.add_argument("--news-clear-2h", action="store_true", default=env_bool("NEWS_CLEAR_2H", False))
     serve_parser.add_argument("--telegram-html", action="store_true")
 
     register_parser = subparsers.add_parser("register-whatsapp", help="Register a CallMeBot WhatsApp query webhook.")
@@ -91,6 +92,9 @@ def main(argv: list[str] | None = None) -> int:
     register_parser.add_argument("--timeout", type=float, default=10.0)
 
     subparsers.add_parser("list-whatsapp", help="List CallMeBot WhatsApp query webhooks.")
+
+    doctor_parser = subparsers.add_parser("doctor", help="Validate required production configuration.")
+    doctor_parser.add_argument("--mode", choices=["server", "actions"], default="server")
 
     notify_parser = subparsers.add_parser("notify", help="Send a test message through CallMeBot.")
     notify_parser.add_argument("text", help="Message text to send.")
@@ -118,6 +122,15 @@ def main(argv: list[str] | None = None) -> int:
 
     if args.command == "config":
         print("\n".join(redacted_config_lines()))
+        return 0
+
+    if args.command == "doctor":
+        keys = SERVER_REQUIRED_KEYS if args.mode == "server" else ACTION_REQUIRED_KEYS
+        missing = missing_keys(keys)
+        print("\n".join(redacted_config_lines()))
+        if missing:
+            raise SystemExit("Missing required env vars: " + ", ".join(missing))
+        print(f"DOCTOR OK: {args.mode} configuration is present.")
         return 0
 
     memory = load_memory(args.memory)

@@ -5,6 +5,7 @@ from pathlib import Path
 from urllib.parse import parse_qs, urlparse
 
 from .callmebot import CallMeBotClient, CallMeBotError
+from .config import SERVER_REQUIRED_KEYS, missing_keys
 from .goldapi import GoldApiError
 from .signals import SignalRequest, run_signal
 
@@ -24,6 +25,11 @@ def run_webhook_server(
     news_clear_2h: bool = False,
     telegram_html: bool = False,
 ) -> None:
+    if not token:
+        missing = missing_keys(["WEBHOOK_TOKEN"])
+        if missing:
+            print("WARNING: WEBHOOK_TOKEN is not set. /signal will be publicly callable.")
+
     class Handler(BaseHTTPRequestHandler):
         def do_GET(self) -> None:
             parsed = urlparse(self.path)
@@ -31,6 +37,14 @@ def run_webhook_server(
 
             if parsed.path == "/health":
                 self.write_text(200, "OK")
+                return
+
+            if parsed.path == "/ready":
+                missing = missing_keys(SERVER_REQUIRED_KEYS)
+                if missing:
+                    self.write_text(503, "Missing required env vars: " + ", ".join(missing))
+                    return
+                self.write_text(200, "READY")
                 return
 
             if parsed.path not in {"/signal", "/webhook"}:

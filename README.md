@@ -226,6 +226,28 @@ SIGNAL_SNAPSHOT_JSON
 
 GitHub Actions can run scheduled automatic checks while your PC is off. It cannot act as a public inbound WhatsApp webhook for `/signal`; for that you still need a small always-on web service such as Cloudflare Workers, Render, Railway, or a VPS.
 
+## Production Deployment
+
+The repo is ready for hosted deployment:
+
+- `Dockerfile` runs the webhook server in a container.
+- `render.yaml` is a Render web-service blueprint.
+- `docs/production.md` has the production runbook.
+
+Production endpoints:
+
+```text
+GET /health
+GET /ready
+GET /webhook?cmd=signal&token=YOUR_WEBHOOK_TOKEN
+```
+
+Run a local production config check:
+
+```powershell
+python -m xauusd_scalp_master doctor --mode server
+```
+
 ### Telegram Group Message
 
 CallMeBot supports Telegram group messages with a separate group API key.

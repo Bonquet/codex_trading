@@ -2,7 +2,7 @@ import os
 import unittest
 from pathlib import Path
 
-from xauusd_scalp_master.config import load_env_file, redact
+from xauusd_scalp_master.config import env_bool, load_env_file, missing_keys, redact
 
 
 class ConfigTests(unittest.TestCase):
@@ -31,6 +31,18 @@ class ConfigTests(unittest.TestCase):
     def test_redact(self):
         self.assertEqual(redact("7448772"), "74...72")
         self.assertEqual(redact("12068145743"), "1206...5743")
+
+    def test_missing_keys_and_env_bool(self):
+        original = os.environ.pop("XAU_TEST_BOOL", None)
+        try:
+            self.assertIn("XAU_TEST_BOOL", missing_keys(["XAU_TEST_BOOL"]))
+            os.environ["XAU_TEST_BOOL"] = "true"
+            self.assertTrue(env_bool("XAU_TEST_BOOL"))
+            self.assertEqual(missing_keys(["XAU_TEST_BOOL"]), [])
+        finally:
+            os.environ.pop("XAU_TEST_BOOL", None)
+            if original is not None:
+                os.environ["XAU_TEST_BOOL"] = original
 
 
 if __name__ == "__main__":

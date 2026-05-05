@@ -1,0 +1,21 @@
+services:
+  - type: web
+    name: xauusd-signal-bot
+    runtime: docker
+    plan: free
+    healthCheckPath: /ready
+    envVars:
+      - key: GOLDAPI_KEY
+        sync: false
+      - key: CALLMEBOT_WHATSAPP_PHONE
+        sync: false
+      - key: CALLMEBOT_WHATSAPP_APIKEY
+        sync: false
+      - key: WEBHOOK_TOKEN
+        generateValue: true
+      - key: NEWS_CLEAR_30M
+        value: "false"
+      - key: NEWS_CLEAR_2H
+        value: "false"
+      - key: SIGNAL_SNAPSHOT_JSON
+        sync: false

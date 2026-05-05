@@ -32,6 +32,9 @@ jobs:
         with:
           python-version: "3.12"
 
+      - name: Validate production secrets
+        run: python -m xauusd_scalp_master doctor --mode actions
+
       - name: Prepare chart snapshot
         shell: bash
         run: |
