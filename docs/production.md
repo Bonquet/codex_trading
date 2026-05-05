@@ -45,6 +45,37 @@ Webhook:
 GET /webhook?cmd=signal&token=YOUR_WEBHOOK_TOKEN
 ```
 
+Chart snapshot update:
+
+```text
+POST /snapshot?token=YOUR_WEBHOOK_TOKEN
+Content-Type: application/json
+```
+
+Example snapshot body:
+
+```json
+{
+  "htf_below_200ema": true,
+  "htf_lower_high": true,
+  "bearish_structure": true,
+  "ema50_rejection": true,
+  "ema50_slope_negative": true,
+  "rsi": 58,
+  "rsi_previous": 62,
+  "macd_bearish_cross": true,
+  "volume_spike_rejection": true,
+  "atr_pips": 11,
+  "bearish_engulfing_resistance": true,
+  "shooting_star_rejection": true,
+  "dxy_strengthening": true,
+  "cot_commercial_shorts_increasing": true,
+  "news_checked_30m": true,
+  "news_checked_2h": true,
+  "swing_high": 2652.2
+}
+```
+
 After deployment, register the WhatsApp command with CallMeBot:
 
 ```powershell

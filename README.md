@@ -239,6 +239,8 @@ Production endpoints:
 ```text
 GET /health
 GET /ready
+GET /snapshot?token=YOUR_WEBHOOK_TOKEN
+POST /snapshot?token=YOUR_WEBHOOK_TOKEN
 GET /webhook?cmd=signal&token=YOUR_WEBHOOK_TOKEN
 ```
 

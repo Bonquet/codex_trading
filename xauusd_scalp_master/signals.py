@@ -66,5 +66,10 @@ def load_snapshot_payload(snapshot_path: str | Path | None) -> dict[str, Any]:
         if snapshot_json:
             return json.loads(snapshot_json)
         return {}
+    if not Path(snapshot_path).exists():
+        snapshot_json = os.getenv("SIGNAL_SNAPSHOT_JSON", "").strip()
+        if snapshot_json:
+            return json.loads(snapshot_json)
+        return {}
     with Path(snapshot_path).open("r", encoding="utf-8") as handle:
         return json.load(handle)
