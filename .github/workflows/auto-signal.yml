@@ -1,0 +1,61 @@
+name: Auto XAUUSD Signal
+
+on:
+  workflow_dispatch:
+    inputs:
+      notify_all:
+        description: "Send WhatsApp even when signal is WAIT/NO TRADE"
+        required: false
+        default: "false"
+  schedule:
+    # GitHub schedules are UTC. This broad window covers 8AM-12PM Eastern
+    # across daylight saving changes; the strategy engine enforces Eastern time.
+    - cron: "*/5 12-17 * * 1-5"
+
+jobs:
+  signal:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      GOLDAPI_KEY: ${{ secrets.GOLDAPI_KEY }}
+      CALLMEBOT_WHATSAPP_PHONE: ${{ secrets.CALLMEBOT_WHATSAPP_PHONE }}
+      CALLMEBOT_WHATSAPP_APIKEY: ${{ secrets.CALLMEBOT_WHATSAPP_APIKEY }}
+      SIGNAL_SNAPSHOT_JSON: ${{ secrets.SIGNAL_SNAPSHOT_JSON }}
+      NOTIFY_ALL: ${{ github.event.inputs.notify_all || 'false' }}
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Prepare chart snapshot
+        shell: bash
+        run: |
+          mkdir -p data
+          if [ -n "$SIGNAL_SNAPSHOT_JSON" ]; then
+            printf '%s' "$SIGNAL_SNAPSHOT_JSON" > data/latest_snapshot.json
+          else
+            cp data/latest_snapshot.example.json data/latest_snapshot.json
+          fi
+
+      - name: Run tests
+        run: python -m unittest discover -v
+
+      - name: Check signal and notify only if valid
+        shell: bash
+        run: |
+          args=(
+            --snapshot data/latest_snapshot.json
+            --news-clear-30m
+            --news-clear-2h
+            --notify whatsapp
+            --once
+          )
+          if [ "$NOTIFY_ALL" = "true" ]; then
+            args+=(--notify-all)
+          fi
+          python -m xauusd_scalp_master watch "${args[@]}"

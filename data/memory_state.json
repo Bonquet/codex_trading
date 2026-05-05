@@ -1,0 +1,14 @@
+{
+  "avoidance_patterns": [],
+  "consecutive_losses": 0,
+  "daily_pnl": 0.0,
+  "last_10_trades": [],
+  "last_trade_result": "NONE",
+  "market_bias": "unknown",
+  "optimal_session_today": false,
+  "session_date": "",
+  "success_streak": 0,
+  "trade_count_today": 0,
+  "updated_at": "",
+  "win_rate_24h": 0.0
+}
