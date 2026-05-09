@@ -7,7 +7,7 @@ import time
 from pathlib import Path
 
 from .callmebot import CallMeBotClient, CallMeBotError
-from .config import ACTION_REQUIRED_KEYS, SERVER_REQUIRED_KEYS, env_bool, env_float, env_int, load_env_file, missing_keys, redacted_config_lines
+from .config import env_bool, env_float, env_int, load_env_file, missing_production_keys, redacted_config_lines
 from .engine import (
     MarketSnapshot,
     TradeRecord,
@@ -28,6 +28,7 @@ DEFAULT_MEMORY_PATH = Path("data/memory_state.json")
 
 
 def main(argv: list[str] | None = None) -> int:
+    load_env_file()
     parser = argparse.ArgumentParser(
         prog="xauusd-scalp-master",
         description="Broker-neutral XAUUSD short scalp memory and checklist engine.",
@@ -46,6 +47,12 @@ def main(argv: list[str] | None = None) -> int:
     signal_parser.add_argument("--metal", default="XAU", help="GoldAPI metal symbol.")
     signal_parser.add_argument("--currency", default="USD", help="GoldAPI currency symbol.")
     signal_parser.add_argument("--timeout", type=float, default=10.0, help="GoldAPI request timeout in seconds.")
+    signal_parser.add_argument(
+        "--quote-source",
+        choices=["auto", "goldapi", "goldapi-io", "goldapi-net", "stooq", "snapshot"],
+        default=os.getenv("QUOTE_SOURCE", "auto"),
+        help="Live quote source. auto tries goldapi.net when configured, then GoldAPI.io, Stooq, then snapshot.",
+    )
     signal_parser.add_argument("--news-clear-30m", action="store_true", help="Confirm economic calendar is clear for 30 minutes.")
     signal_parser.add_argument("--news-clear-2h", action="store_true", help="Confirm high-impact news is clear for 2 hours.")
     signal_parser.add_argument(
@@ -54,6 +61,12 @@ def main(argv: list[str] | None = None) -> int:
         help="Send the signal result through CallMeBot.",
     )
     signal_parser.add_argument("--notify-timeout", type=float, default=10.0, help="CallMeBot request timeout in seconds.")
+    signal_parser.add_argument(
+        "--notify-format",
+        choices=["short", "full"],
+        default=os.getenv("NOTIFY_FORMAT", "short"),
+        help="Notification body format.",
+    )
     signal_parser.add_argument("--telegram-html", action="store_true", help="Send Telegram group notification as HTML.")
     add_snapshot_args(signal_parser)
 
@@ -63,10 +76,20 @@ def main(argv: list[str] | None = None) -> int:
     watch_parser.add_argument("--metal", default="XAU")
     watch_parser.add_argument("--currency", default="USD")
     watch_parser.add_argument("--timeout", type=float, default=10.0)
+    watch_parser.add_argument(
+        "--quote-source",
+        choices=["auto", "goldapi", "goldapi-io", "goldapi-net", "stooq", "snapshot"],
+        default=os.getenv("QUOTE_SOURCE", "auto"),
+    )
     watch_parser.add_argument("--interval", type=float, default=env_float("WATCH_INTERVAL", 60.0), help="Seconds between signal checks.")
     watch_parser.add_argument("--cooldown", type=float, default=env_float("WATCH_COOLDOWN", 300.0), help="Seconds between repeated valid alerts.")
     watch_parser.add_argument("--notify", choices=["whatsapp", "telegram-group"], default="whatsapp")
     watch_parser.add_argument("--notify-all", action="store_true", default=env_bool("NOTIFY_ALL", False), help="Notify even when the signal is WAIT/NO TRADE.")
+    watch_parser.add_argument(
+        "--notify-format",
+        choices=["short", "full"],
+        default=os.getenv("NOTIFY_FORMAT", "short"),
+    )
     watch_parser.add_argument("--once", action="store_true", help="Run one watch iteration then exit.")
     watch_parser.add_argument("--news-clear-30m", action="store_true", default=env_bool("NEWS_CLEAR_30M", False))
     watch_parser.add_argument("--news-clear-2h", action="store_true", default=env_bool("NEWS_CLEAR_2H", False))
@@ -81,7 +104,17 @@ def main(argv: list[str] | None = None) -> int:
     serve_parser.add_argument("--metal", default="XAU")
     serve_parser.add_argument("--currency", default="USD")
     serve_parser.add_argument("--timeout", type=float, default=10.0)
+    serve_parser.add_argument(
+        "--quote-source",
+        choices=["auto", "goldapi", "goldapi-io", "goldapi-net", "stooq", "snapshot"],
+        default=os.getenv("QUOTE_SOURCE", "auto"),
+    )
     serve_parser.add_argument("--notify", choices=["whatsapp", "telegram-group"], default="whatsapp")
+    serve_parser.add_argument(
+        "--notify-format",
+        choices=["short", "full"],
+        default=os.getenv("NOTIFY_FORMAT", "short"),
+    )
     serve_parser.add_argument("--news-clear-30m", action="store_true", default=env_bool("NEWS_CLEAR_30M", False))
     serve_parser.add_argument("--news-clear-2h", action="store_true", default=env_bool("NEWS_CLEAR_2H", False))
     serve_parser.add_argument("--telegram-html", action="store_true")
@@ -118,15 +151,13 @@ def main(argv: list[str] | None = None) -> int:
     subparsers.add_parser("show-memory", help="Print the current persistent memory JSON.")
 
     args = parser.parse_args(argv)
-    load_env_file()
 
     if args.command == "config":
         print("\n".join(redacted_config_lines()))
         return 0
 
     if args.command == "doctor":
-        keys = SERVER_REQUIRED_KEYS if args.mode == "server" else ACTION_REQUIRED_KEYS
-        missing = missing_keys(keys)
+        missing = missing_production_keys(args.mode)
         print("\n".join(redacted_config_lines()))
         if missing:
             raise SystemExit("Missing required env vars: " + ", ".join(missing))
@@ -149,7 +180,12 @@ def main(argv: list[str] | None = None) -> int:
             raise SystemExit(f"Signal unavailable: {exc}") from exc
         print(result.output)
         if args.notify:
-            send_notification(args.notify, result.output, args.notify_timeout, telegram_html=args.telegram_html)
+            send_notification(
+                args.notify,
+                notification_body(result, args.notify_format),
+                args.notify_timeout,
+                telegram_html=args.telegram_html,
+            )
         return 0
 
     if args.command == "watch":
@@ -167,7 +203,9 @@ def main(argv: list[str] | None = None) -> int:
             metal=args.metal,
             currency=args.currency,
             quote_timeout=args.timeout,
+            quote_source=args.quote_source,
             notify_channel=args.notify,
+            notify_format=args.notify_format,
             news_clear_30m=args.news_clear_30m,
             news_clear_2h=args.news_clear_2h,
             telegram_html=args.telegram_html,
@@ -378,6 +416,7 @@ def signal_request_from_args(args: argparse.Namespace, memory_path: str | Path) 
         metal=args.metal,
         currency=args.currency,
         quote_timeout=args.timeout,
+        quote_source=getattr(args, "quote_source", "auto"),
         news_clear_30m=getattr(args, "news_clear_30m", False),
         news_clear_2h=getattr(args, "news_clear_2h", False),
     )
@@ -396,7 +435,12 @@ def run_watch(args: argparse.Namespace) -> None:
             should_notify = result.decision.should_trade or args.notify_all
             cooldown_ready = now - last_sent >= args.cooldown
             if should_notify and cooldown_ready:
-                send_notification(args.notify, result.output, 10.0, telegram_html=args.telegram_html)
+                send_notification(
+                    args.notify,
+                    notification_body(result, args.notify_format),
+                    10.0,
+                    telegram_html=args.telegram_html,
+                )
                 last_sent = now
         if args.once:
             break
@@ -415,6 +459,10 @@ def send_notification(channel: str, text: str, timeout: float, telegram_html: bo
     except CallMeBotError as exc:
         raise SystemExit(f"Notification unavailable: {exc}") from exc
     print(f"NOTIFICATION SENT: {channel} | {response}")
+
+
+def notification_body(result, notify_format: str) -> str:
+    return result.output if notify_format == "full" else result.alert
 
 
 if __name__ == "__main__":

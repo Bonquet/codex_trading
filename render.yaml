@@ -7,6 +7,10 @@ services:
     envVars:
       - key: GOLDAPI_KEY
         sync: false
+      - key: GOLDAPI_NET_KEY
+        sync: false
+      - key: QUOTE_SOURCE
+        value: "goldapi-net"
       - key: CALLMEBOT_WHATSAPP_PHONE
         sync: false
       - key: CALLMEBOT_WHATSAPP_APIKEY
@@ -17,5 +21,7 @@ services:
         value: "false"
       - key: NEWS_CLEAR_2H
         value: "false"
+      - key: NOTIFY_FORMAT
+        value: "short"
       - key: SIGNAL_SNAPSHOT_JSON
         sync: false

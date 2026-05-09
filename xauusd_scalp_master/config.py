@@ -6,10 +6,13 @@ from pathlib import Path
 
 CONFIG_KEYS = [
     "GOLDAPI_KEY",
+    "GOLDAPI_NET_KEY",
+    "QUOTE_SOURCE",
     "CALLMEBOT_WHATSAPP_PHONE",
     "CALLMEBOT_WHATSAPP_APIKEY",
     "CALLMEBOT_TELEGRAM_GROUP_APIKEY",
     "WEBHOOK_TOKEN",
+    "NOTIFY_FORMAT",
     "SIGNAL_SNAPSHOT_JSON",
 ]
 
@@ -23,7 +26,6 @@ SERVER_REQUIRED_KEYS = [
 
 
 ACTION_REQUIRED_KEYS = [
-    "GOLDAPI_KEY",
     "CALLMEBOT_WHATSAPP_PHONE",
     "CALLMEBOT_WHATSAPP_APIKEY",
 ]
@@ -55,6 +57,29 @@ def redacted_config_lines() -> list[str]:
 
 def missing_keys(keys: list[str]) -> list[str]:
     return [key for key in keys if not os.getenv(key)]
+
+
+def missing_production_keys(mode: str) -> list[str]:
+    keys = list(SERVER_REQUIRED_KEYS if mode == "server" else ACTION_REQUIRED_KEYS)
+    for key in quote_required_keys():
+        if key not in keys:
+            keys.append(key)
+    return missing_keys(keys)
+
+
+def quote_required_keys() -> list[str]:
+    source = os.getenv("QUOTE_SOURCE", "auto").strip().lower()
+    if source in {"goldapi-net", "goldapinet"}:
+        return ["GOLDAPI_NET_KEY"]
+    if source in {"goldapi", "goldapi-io", "goldapiio"}:
+        return ["GOLDAPI_KEY"]
+    if source in {"stooq", "snapshot"}:
+        return []
+    if os.getenv("GOLDAPI_NET_KEY"):
+        return ["GOLDAPI_NET_KEY"]
+    if os.getenv("GOLDAPI_KEY"):
+        return ["GOLDAPI_KEY"]
+    return ["GOLDAPI_NET_KEY"]
 
 
 def env_bool(key: str, default: bool = False) -> bool:

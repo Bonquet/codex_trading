@@ -11,6 +11,7 @@ Never commit real keys. Put these in the deployment provider and in GitHub Actio
 
 ```text
 GOLDAPI_KEY
+GOLDAPI_NET_KEY
 CALLMEBOT_WHATSAPP_PHONE
 CALLMEBOT_WHATSAPP_APIKEY
 WEBHOOK_TOKEN
@@ -22,7 +23,7 @@ For real valid signals, also provide:
 SIGNAL_SNAPSHOT_JSON
 ```
 
-GoldAPI supplies price only. `SIGNAL_SNAPSHOT_JSON` must supply chart/news confirmations.
+GoldAPI supplies price only. The app defaults to `QUOTE_SOURCE=auto`, so it uses goldapi.net when `GOLDAPI_NET_KEY` is set, then falls back to GoldAPI.io, Stooq spot quotes, or snapshot price. `SIGNAL_SNAPSHOT_JSON` must still supply chart/news confirmations for valid scalp entries.
 
 ## Hosted Webhook
 
@@ -92,12 +93,15 @@ Set GitHub repository secrets:
 
 ```text
 GOLDAPI_KEY
+GOLDAPI_NET_KEY
 CALLMEBOT_WHATSAPP_PHONE
 CALLMEBOT_WHATSAPP_APIKEY
 SIGNAL_SNAPSHOT_JSON
 ```
 
 The scheduled workflow runs every 5 minutes in the broad London-NY overlap window. It sends WhatsApp only when `should_trade` is true.
+
+Alerts are compact by default (`NOTIFY_FORMAT=short`). Set `NOTIFY_FORMAT=full` only if you want the full checklist sent to WhatsApp.
 
 For a test notification, run the workflow manually with `notify_all=true`.
 

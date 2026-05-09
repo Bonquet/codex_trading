@@ -6,7 +6,9 @@ from xauusd_scalp_master.engine import (
     TradeRecord,
     analyze_setup,
     calculate_win_rate_24h,
+    in_london_ny_overlap,
     record_trade,
+    to_eastern,
 )
 
 
@@ -105,6 +107,14 @@ class EngineTests(unittest.TestCase):
             {"timestamp": "2026-05-03T09:30:00-04:00", "success": True},
         ]
         self.assertEqual(calculate_win_rate_24h(trades, now), 50.0)
+
+    def test_eastern_session_uses_daylight_saving_time(self):
+        early_overlap = datetime.fromisoformat("2026-05-07T12:30:00+00:00")
+        after_overlap = datetime.fromisoformat("2026-05-07T16:27:00+00:00")
+
+        self.assertEqual(to_eastern(early_overlap).hour, 8)
+        self.assertTrue(in_london_ny_overlap(early_overlap))
+        self.assertFalse(in_london_ny_overlap(after_overlap))
 
 
 if __name__ == "__main__":

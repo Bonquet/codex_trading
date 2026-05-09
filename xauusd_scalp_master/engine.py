@@ -5,7 +5,7 @@ import json
 import math
 import re
 from dataclasses import dataclass, field
-from datetime import datetime, time, timezone, timedelta
+from datetime import datetime, time, timezone, timedelta, tzinfo
 from pathlib import Path
 from typing import Any
 
@@ -20,11 +20,51 @@ EASTERN_TZ_NAME = "America/New_York"
 
 def _eastern_tz():
     if ZoneInfo is None:
-        return timezone(timedelta(hours=-5))
+        return EasternFallbackTz()
     try:
         return ZoneInfo(EASTERN_TZ_NAME)
     except Exception:
-        return timezone(timedelta(hours=-5))
+        return EasternFallbackTz()
+
+
+class EasternFallbackTz(tzinfo):
+    def utcoffset(self, dt: datetime | None) -> timedelta:
+        return timedelta(hours=-5) + self.dst(dt)
+
+    def dst(self, dt: datetime | None) -> timedelta:
+        if dt is None:
+            return timedelta(0)
+        local = dt.replace(tzinfo=None)
+        start = self._dst_start(local.year)
+        end = self._dst_end(local.year)
+        return timedelta(hours=1) if start <= local < end else timedelta(0)
+
+    def tzname(self, dt: datetime | None) -> str:
+        return "EDT" if self.dst(dt) else "EST"
+
+    def fromutc(self, dt: datetime) -> datetime:
+        if dt.tzinfo is not self:
+            raise ValueError("fromutc: dt.tzinfo is not self")
+        utc_naive = dt.replace(tzinfo=None)
+        standard = utc_naive + timedelta(hours=-5)
+        daylight = standard + timedelta(hours=1)
+        if self._dst_start(daylight.year) <= daylight < self._dst_end(daylight.year):
+            return daylight.replace(tzinfo=self)
+        return standard.replace(tzinfo=self)
+
+    @staticmethod
+    def _dst_start(year: int) -> datetime:
+        return EasternFallbackTz._nth_weekday(year, 3, 6, 2).replace(hour=2)
+
+    @staticmethod
+    def _dst_end(year: int) -> datetime:
+        return EasternFallbackTz._nth_weekday(year, 11, 6, 1).replace(hour=2)
+
+    @staticmethod
+    def _nth_weekday(year: int, month: int, weekday: int, occurrence: int) -> datetime:
+        first = datetime(year, month, 1)
+        offset = (weekday - first.weekday()) % 7
+        return first + timedelta(days=offset + (occurrence - 1) * 7)
 
 
 EASTERN = _eastern_tz()

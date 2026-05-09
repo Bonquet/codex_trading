@@ -18,9 +18,12 @@ jobs:
     timeout-minutes: 5
     env:
       GOLDAPI_KEY: ${{ secrets.GOLDAPI_KEY }}
+      GOLDAPI_NET_KEY: ${{ secrets.GOLDAPI_NET_KEY }}
+      QUOTE_SOURCE: ${{ vars.QUOTE_SOURCE || 'auto' }}
       CALLMEBOT_WHATSAPP_PHONE: ${{ secrets.CALLMEBOT_WHATSAPP_PHONE }}
       CALLMEBOT_WHATSAPP_APIKEY: ${{ secrets.CALLMEBOT_WHATSAPP_APIKEY }}
       SIGNAL_SNAPSHOT_JSON: ${{ secrets.SIGNAL_SNAPSHOT_JSON }}
+      NOTIFY_FORMAT: short
       NOTIFY_ALL: ${{ github.event.inputs.notify_all || 'false' }}
 
     steps:

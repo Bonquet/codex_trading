@@ -12,7 +12,7 @@ from .engine import (
     record_trade,
     save_memory,
 )
-from .goldapi import GoldApiClient, GoldApiError, GoldQuote
+from .goldapi import GoldApiClient, GoldApiError, GoldApiNetClient, GoldQuote, StooqQuoteClient
 from .signals import SignalRequest, SignalResult, run_signal
 
 __all__ = [
@@ -21,7 +21,9 @@ __all__ = [
     "DEFAULT_MEMORY",
     "GoldApiClient",
     "GoldApiError",
+    "GoldApiNetClient",
     "GoldQuote",
+    "StooqQuoteClient",
     "SignalRequest",
     "SignalResult",
     "load_env_file",

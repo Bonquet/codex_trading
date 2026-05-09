@@ -6,7 +6,7 @@ from pathlib import Path
 from urllib.parse import parse_qs, urlparse
 
 from .callmebot import CallMeBotClient, CallMeBotError
-from .config import SERVER_REQUIRED_KEYS, missing_keys
+from .config import missing_keys, missing_production_keys
 from .goldapi import GoldApiError
 from .signals import SignalRequest, run_signal
 
@@ -21,7 +21,9 @@ def run_webhook_server(
     metal: str = "XAU",
     currency: str = "USD",
     quote_timeout: float = 10.0,
+    quote_source: str = "auto",
     notify_channel: str = "whatsapp",
+    notify_format: str = "short",
     news_clear_30m: bool = False,
     news_clear_2h: bool = False,
     telegram_html: bool = False,
@@ -42,7 +44,7 @@ def run_webhook_server(
                 return
 
             if parsed.path == "/ready":
-                missing = missing_keys(SERVER_REQUIRED_KEYS)
+                missing = missing_production_keys("server")
                 if missing:
                     self.write_text(503, "Missing required env vars: " + ", ".join(missing))
                     return
@@ -81,11 +83,13 @@ def run_webhook_server(
                         metal=metal,
                         currency=currency,
                         quote_timeout=quote_timeout,
+                        quote_source=quote_source,
                         news_clear_30m=news_clear_30m,
                         news_clear_2h=news_clear_2h,
                     )
                 )
-                notification = send_server_notification(notify_channel, result.output, telegram_html)
+                message = result.output if notify_format == "full" else result.alert
+                notification = send_server_notification(notify_channel, message, telegram_html)
             except GoldApiError as exc:
                 self.write_text(502, f"Signal unavailable: {exc}")
                 return

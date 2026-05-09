@@ -13,26 +13,35 @@ This project does not place live trades, connect to a broker, or guarantee a win
 - Dynamic risk profiles by state
 - Post-trade memory updates for last 10 trades, 24h win rate, streaks, daily PnL, and avoidance patterns
 - Failure analysis for fakeouts, news spikes, overextension, and chop
-- Live XAU/USD quote lookup through GoldAPI.io using `GOLDAPI_KEY`
+- Live XAU/USD quote lookup through goldapi.net or GoldAPI.io, with Stooq and snapshot-price fallbacks
 
 ## GoldAPI Setup
 
 Do not hardcode your API key in the repo. Set it in the current PowerShell session:
 
 ```powershell
-$env:GOLDAPI_KEY = "your-goldapi-key"
+$env:GOLDAPI_NET_KEY = "your-goldapi-net-key"
+$env:QUOTE_SOURCE = "goldapi-net"
 ```
 
-The live quote client uses:
+The preferred live quote client uses the verified goldapi.net endpoint:
 
 ```text
-GET https://www.goldapi.io/api/XAU/USD
-Header: x-access-token: $GOLDAPI_KEY
+GET https://app.goldapi.net/api/price/XAU/USD
+Header: x-api-key: $GOLDAPI_NET_KEY
+```
+
+The default quote source is `auto`: goldapi.net first when `GOLDAPI_NET_KEY` is configured, then GoldAPI.io, Stooq XAU/USD spot fallback, then a snapshot `price` fallback if one is provided. Force a source when needed:
+
+```powershell
+python -m xauusd_scalp_master signal --quote-source goldapi-net --news-clear-30m --news-clear-2h
+python -m xauusd_scalp_master signal --quote-source stooq --news-clear-30m --news-clear-2h
+python -m xauusd_scalp_master signal --quote-source snapshot --snapshot data/latest_snapshot.json
 ```
 
 ## Get A Live Signal
 
-The `signal` command fetches the live XAU/USD price from GoldAPI and then runs the same strict checklist engine.
+The `signal` command fetches the live XAU/USD price and then runs the same strict checklist engine.
 
 ```powershell
 python -m xauusd_scalp_master signal `
@@ -122,6 +131,14 @@ python -m xauusd_scalp_master signal `
   --notify whatsapp
 ```
 
+Notifications are short by default:
+
+```text
+XAUUSD SELL 2652.10 | SL 2653.00 | TP1 2651.10 | TP2 2650.30 | PRIME | Risk 1.00%
+```
+
+Use `--notify-format full` if you want the full checklist sent.
+
 CallMeBot's WhatsApp API sends only to your activated contact. It does not send WhatsApp messages to groups or receive replies.
 
 ### Make `/signal` Work From WhatsApp
@@ -177,7 +194,9 @@ python -m xauusd_scalp_master watch `
   --cooldown 300
 ```
 
-`data/latest_snapshot.json` must be updated by your charting/data stack with EMA, RSI, MACD, ATR, volume, DXY, COT, and news confirmations. GoldAPI only supplies the live XAU/USD quote, so the watcher will not send a valid `SELL` alert from price alone.
+`data/latest_snapshot.json` must be updated by your charting/data stack with EMA, RSI, MACD, ATR, volume, DXY, COT, and news confirmations. The quote source supplies price only, so the watcher will not send a valid `SELL` alert from price alone.
+
+If GoldAPI quota is exhausted, `watch` keeps running with the Stooq spot fallback. It still needs a real chart snapshot for sharp valid entries.
 
 ## GitHub Remote Automation
 
@@ -190,6 +209,7 @@ Set these repository secrets in GitHub:
 
 ```text
 GOLDAPI_KEY
+GOLDAPI_NET_KEY
 CALLMEBOT_WHATSAPP_PHONE
 CALLMEBOT_WHATSAPP_APIKEY
 ```
@@ -349,4 +369,4 @@ python -m xauusd_scalp_master show-memory
 - Default `pip_size` is `0.10`, meaning 10 pips equals 1.00 XAUUSD price unit. Change `--pip-size` if your broker defines gold pips differently.
 - `CAUTION` is treated as `WAIT`, even though the risk table is stored for completeness.
 - `RECOVERY` can still trade if every checklist item passes, but risk is reduced to 0.3%.
-- GoldAPI provides the live XAU/USD quote. Economic calendar data, DXY, COT, volume, and indicator values must still come from your charting/data stack.
+- Quote sources provide the live XAU/USD price. Economic calendar data, DXY, COT, volume, and indicator values must still come from your charting/data stack.

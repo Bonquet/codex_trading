@@ -2,7 +2,7 @@ import os
 import unittest
 from pathlib import Path
 
-from xauusd_scalp_master.config import env_bool, load_env_file, missing_keys, redact
+from xauusd_scalp_master.config import env_bool, load_env_file, missing_keys, quote_required_keys, redact
 
 
 class ConfigTests(unittest.TestCase):
@@ -43,6 +43,19 @@ class ConfigTests(unittest.TestCase):
             os.environ.pop("XAU_TEST_BOOL", None)
             if original is not None:
                 os.environ["XAU_TEST_BOOL"] = original
+
+    def test_quote_required_keys_prefers_goldapi_net_source(self):
+        originals = {key: os.environ.get(key) for key in ["QUOTE_SOURCE", "GOLDAPI_KEY", "GOLDAPI_NET_KEY"]}
+        try:
+            os.environ["QUOTE_SOURCE"] = "goldapi-net"
+            os.environ.pop("GOLDAPI_KEY", None)
+            os.environ.pop("GOLDAPI_NET_KEY", None)
+            self.assertEqual(quote_required_keys(), ["GOLDAPI_NET_KEY"])
+        finally:
+            for key, value in originals.items():
+                os.environ.pop(key, None)
+                if value is not None:
+                    os.environ[key] = value
 
 
 if __name__ == "__main__":
